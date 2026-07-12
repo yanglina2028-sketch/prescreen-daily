@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>预筛日报工具</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --blue: #2563eb;
+    --blue-light: #eff6ff;
+    --green: #16a34a;
+    --green-light: #f0fdf4;
+    --red: #dc2626;
+    --red-light: #fef2f2;
+    --gray-50: #f9fafb;
+    --gray-100: #f3f4f6;
+    --gray-200: #e5e7eb;
+    --gray-300: #d1d5db;
+    --gray-400: #9ca3af;
+    --gray-500: #6b7280;
+    --gray-600: #4b5563;
+    --gray-700: #374151;
+    --gray-800: #1f2937;
+    --gray-900: #111827;
+    --radius: 8px;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    background: var(--gray-100);
+    color: var(--gray-800);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+  .app-header {
+    background: #fff;
+    border-bottom: 1px solid var(--gray-200);
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .app-header h1 {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--gray-900);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .app-header h1 small {
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--gray-500);
+  }
+  .mode-tabs {
+    display: flex;
+    gap: 4px;
+    background: var(--gray-100);
+    border-radius: var(--radius);
+    padding: 3px;
+  }
+  .mode-tab {
+    padding: 6px 20px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    background: transparent;
+    color: var(--gray-500);
+    transition: all 0.15s;
+  }
+  .mode-tab:hover { color: var(--gray-700); }
+  .mode-tab.active {
+    background: #fff;
+    color: var(--blue);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+  .container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 24px 16px;
+  }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* Form */
+  .form-card {
+    background: #fff;
+    border-radius: var(--radius);
+    border: 1px solid var(--gray-200);
+    padding: 24px;
+  }
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px 24px;
+  }
+  .form-group { display: flex; flex-direction: column; gap: 4px; }
+  .form-group.full { grid-column: 1 / -1; }
+  .form-group label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--gray-600);
+  }
+  .form-group input, .form-group select, .form-group textarea {
+    padding: 8px 12px;
+    border: 1px solid var(--gray-300);
+    border-radius: 6px;
+    font-size: 14px;
+    color: var(--gray-800);
+    outline: none;
+    transition: border 0.15s;
+    font-family: inherit;
+  }
+  .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+    border-color: var(--blue);
+    box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+  }
+  .form-group textarea { resize: vertical; min-height: 60px; }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn-primary { background: var(--blue); color: #fff; }
+  .btn-primary:hover { background: #1d4ed8; }
+  .btn-success { background: var(--green); color: #fff; }
+  .btn-success:hover { background: #15803d; }
+  .btn-outline {
+    background: transparent;
+    border: 1px solid var(--gray-300);
+    color: var(--gray-600);
+  }
+  .btn-outline:hover { background: var(--gray-50); border-color: var(--gray-400); }
+  .btn-sm { padding: 4px 12px; font-size: 13px; }
+  .form-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  /* Generated message */
+  .message-preview {
+    display: none;
+    margin-top: 20px;
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius);
+    padding: 16px;
+  }
+  .message-preview.show { display: block; }
+  .message-preview .msg-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--gray-500);
+    margin-bottom: 6px;
+  }
+  .msg-hint {
+    font-size: 12px;
+    color: var(--gray-400);
+    margin-bottom: 8px;
+  }
+  .msg-hint kbd {
+    display: inline-block;
+    padding: 1px 5px;
+    font-size: 11px;
+    font-family: inherit;
+    background: var(--gray-100);
+    border: 1px solid var(--gray-300);
+    border-radius: 3px;
+  }
+  .msg-textarea {
+    background: #fff;
+    border: 1px solid var(--blue);
+    border-radius: 6px;
+    padding: 12px 16px;
+    font-size: 14px;
+    line-height: 1.8;
+    font-family: inherit;
+    width: 100%;
+    min-height: 150px;
+    resize: none;
+    outline: none;
+    color: var(--gray-800);
+    margin-bottom: 10px;
+  }
+  .msg-textarea:focus {
+    border-color: var(--blue);
+    box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+  }
+  .copy-success {
+    font-size: 13px;
+    color: var(--green);
+    font-weight: 500;
+  }
+
+  /* PM Dashboard */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .stat-card {
+    background: #fff;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius);
+    padding: 16px;
+    text-align: center;
+  }
+  .stat-card .stat-num {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--gray-900);
+  }
+  .stat-card .stat-label {
+    font-size: 12px;
+    color: var(--gray-500);
+    margin-top: 2px;
+  }
+
+  .dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .dashboard-header h2 { font-size: 16px; font-weight: 600; }
+
+  .filter-bar {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .filter-bar input, .filter-bar select {
+    padding: 6px 10px;
+    border: 1px solid var(--gray-300);
+    border-radius: 6px;
+    font-size: 13px;
+    outline: none;
+    font-family: inherit;
+  }
+  .filter-bar input:focus, .filter-bar select:focus {
+    border-color: var(--blue);
+  }
+
+  .table-wrap {
+    background: #fff;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius);
+    overflow-x: auto;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  th {
+    background: var(--gray-50);
+    padding: 10px 12px;
+    text-align: left;
+    font-weight: 600;
+    color: var(--gray-600);
+    white-space: nowrap;
+    border-bottom: 1px solid var(--gray-200);
+  }
+  td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--gray-100);
+    color: var(--gray-700);
+  }
+  tr:hover td { background: var(--gray-50); }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+  .badge-reported { background: var(--green-light); color: var(--green); }
+  .badge-missing { background: var(--red-light); color: var(--red); }
+
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--gray-400);
+    font-size: 14px;
+  }
+  .empty-state strong { color: var(--gray-500); }
+
+  @media (max-width: 640px) {
+    .form-grid { grid-template-columns: 1fr; }
+    .app-header { padding: 12px 16px; }
+    .app-header h1 { font-size: 16px; }
+    .container { padding: 16px 12px; }
+    .stats-row { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<div class="app-header">
+  <h1>&#128203; 预筛日报 <small>SMO 填报工具</small></h1>
+  <div class="mode-tabs">
+    <button class="mode-tab active" data-mode="crc" onclick="switchMode('crc')">&#9998;&#65039; CRC填报</button>
+    <button class="mode-tab" data-mode="pm" onclick="switchMode('pm')">&#128202; PM看板</button>
+  </div>
+</div>
+
+<div class="container">
+  <!-- CRC 填报面板 -->
+  <div class="panel active" id="panel-crc">
+    <div class="form-card">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>日期</label>
+          <input type="date" id="report-date">
+        </div>
+        <div class="form-group">
+          <label>项目名称</label>
+          <input type="text" id="project-name" placeholder="如：AZ-12345" list="project-list">
+          <datalist id="project-list"></datalist>
+        </div>
+        <div class="form-group">
+          <label>CRC 姓名</label>
+          <input type="text" id="crc-name" placeholder="你的名字" list="crc-list">
+          <datalist id="crc-list"></datalist>
+        </div>
+        <div class="form-group">
+          <label>中心 / 科室</label>
+          <input type="text" id="site-name" placeholder="如：XX医院 肿瘤科" list="site-list">
+          <datalist id="site-list"></datalist>
+        </div>
+        <div class="form-group">
+          <label>今日预筛人数</label>
+          <input type="number" id="pre-screen" min="0" placeholder="0">
+        </div>
+        <div class="form-group">
+          <label>筛选合格人数</label>
+          <input type="number" id="eligible" min="0" placeholder="0">
+        </div>
+        <div class="form-group">
+          <label>筛选失败人数</label>
+          <input type="number" id="screen-fail" min="0" placeholder="0">
+        </div>
+        <div class="form-group">
+          <label>待确认人数</label>
+          <input type="number" id="pending" min="0" placeholder="0" value="0">
+        </div>
+        <div class="form-group full">
+          <label>失败主要原因（可选）</label>
+          <textarea id="fail-reason" placeholder="如：检验值不符、患者撤回同意…"></textarea>
+        </div>
+        <div class="form-group full">
+          <label>备注 / 需关注事项（可选）</label>
+          <textarea id="notes" placeholder="如：下周预计新增预筛3人、需协调研究者时间…"></textarea>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary" onclick="submitReport()">&#128228; 生成日报</button>
+        <span id="form-status" style="font-size:13px;color:var(--gray-400);"></span>
+      </div>
+    </div>
+
+    <!-- 生成的微信消息 -->
+    <div class="message-preview" id="msg-preview">
+      <div class="msg-label">已生成，下面两种方式都可以复制到微信 &#128071;</div>
+      <div class="msg-hint"><strong>方式一：</strong>点击下方文字框，按 <kbd>Ctrl+C</kbd>（Mac: <kbd>&#8984;C</kbd>）复制</div>
+      <textarea class="msg-textarea" id="msg-text" readonly onclick="this.select();selectAllText()"></textarea>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <button class="btn btn-success btn-sm" onclick="selectAndCopy()">&#128203; <strong>一键复制</strong></button>
+        <span style="font-size:12px;color:var(--gray-400);"><strong>方式二：</strong>点击上方按钮自动复制</span>
+        <button class="btn btn-outline btn-sm" onclick="clearForm()">清空重填</button>
+        <span id="copy-feedback" class="copy-success"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- PM 看板面板 -->
+  <div class="panel" id="panel-pm">
+    <div class="stats-row" id="stats-row">
+      <div class="stat-card">
+        <div class="stat-num" id="stat-total">0</div>
+        <div class="stat-label">今日已报</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" id="stat-missing">0</div>
+        <div class="stat-label">今日未报</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" id="stat-all">0</div>
+        <div class="stat-label">历史总填报</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" id="stat-pre-total">0</div>
+        <div class="stat-label">累计预筛人数</div>
+      </div>
+    </div>
+
+    <div class="dashboard-header">
+      <h2>填报记录</h2>
+      <div class="filter-bar">
+        <input type="date" id="filter-date">
+        <input type="text" id="filter-crc" placeholder="CRC姓名" style="width:110px;">
+        <input type="text" id="filter-project" placeholder="项目" style="width:110px;">
+        <button class="btn btn-outline btn-sm" onclick="applyFilters()">筛选</button>
+        <button class="btn btn-outline btn-sm" onclick="resetFilters()">重置</button>
+        <button class="btn btn-outline btn-sm" onclick="exportData()">&#128229; 导出 CSV</button>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>日期</th>
+            <th>项目</th>
+            <th>CRC</th>
+            <th>中心</th>
+            <th>预筛</th>
+            <th>合格</th>
+            <th>失败</th>
+            <th>待确认</th>
+            <th>失败原因</th>
+            <th>备注</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="report-table-body">
+        </tbody>
+      </table>
+      <div class="empty-state" id="empty-state">
+        <strong>暂无填报数据</strong><br>
+        首次使用？在「CRC填报」页签提交第一条日报吧。
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ========== 数据管理 ==========
+const STORAGE_KEY = 'prescreen_reports';
+
+function getReports() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+  } catch { return []; }
+}
+
+function saveReports(reports) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(reports));
+}
+
+// ========== 日期工具 ==========
+function today() {
+  const d = new Date();
+  return d.getFullYear() + '-' +
+    String(d.getMonth() + 1).padStart(2, '0') + '-' +
+    String(d.getDate()).padStart(2, '0');
+}
+
+// ========== 从历史记录中提取唯一值用于 datalist ==========
+function extractDatalists() {
+  const reports = getReports();
+  const projects = [...new Set(reports.map(r => r.project).filter(Boolean))];
+  const crcs = [...new Set(reports.map(r => r.crc).filter(Boolean))];
+  const sites = [...new Set(reports.map(r => r.site).filter(Boolean))];
+
+  document.getElementById('project-list').innerHTML =
+    projects.map(p => '<option value="' + p.replace(/"/g,'&quot;') + '">').join('');
+  document.getElementById('crc-list').innerHTML =
+    crcs.map(c => '<option value="' + c.replace(/"/g,'&quot;') + '">').join('');
+  document.getElementById('site-list').innerHTML =
+    sites.map(s => '<option value="' + s.replace(/"/g,'&quot;') + '">').join('');
+}
+
+// ========== 初始化 ==========
+document.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('report-date').value = today();
+  document.getElementById('filter-date').value = today();
+  extractDatalists();
+  renderPMDashboard();
+  document.getElementById('filter-date').addEventListener('change', applyFilters);
+});
+
+// ========== 模式切换 ==========
+function switchMode(mode) {
+  document.querySelectorAll('.panel').forEach(function(p) { p.classList.remove('active'); });
+  document.querySelectorAll('.mode-tab').forEach(function(t) { t.classList.remove('active'); });
+  document.getElementById('panel-' + mode).classList.add('active');
+  document.querySelector('[data-mode="' + mode + '"]').classList.add('active');
+  if (mode === 'pm') {
+    renderPMDashboard();
+  }
+}
+
+// ========== CRC 提交 ==========
+function submitReport() {
+  var date = document.getElementById('report-date').value;
+  var project = document.getElementById('project-name').value.trim();
+  var crc = document.getElementById('crc-name').value.trim();
+  var site = document.getElementById('site-name').value.trim();
+  var preScreen = parseInt(document.getElementById('pre-screen').value) || 0;
+  var eligible = parseInt(document.getElementById('eligible').value) || 0;
+  var screenFail = parseInt(document.getElementById('screen-fail').value) || 0;
+  var pending = parseInt(document.getElementById('pending').value) || 0;
+  var failReason = document.getElementById('fail-reason').value.trim();
+  var notes = document.getElementById('notes').value.trim();
+
+  if (!crc) { showStatus('请填写 CRC 姓名', true); return; }
+  if (!site) { showStatus('请填写中心名称', true); return; }
+
+  var total = eligible + screenFail + pending;
+  if (total > preScreen) {
+    showStatus('合格 + 失败 + 待确认人数不能超过预筛总人数', true);
+    return;
+  }
+
+  var report = {
+    date: date,
+    project: project,
+    crc: crc,
+    site: site,
+    preScreen: preScreen,
+    eligible: eligible,
+    screenFail: screenFail,
+    pending: pending,
+    failReason: failReason,
+    notes: notes,
+    timestamp: Date.now()
+  };
+
+  var reports = getReports();
+  reports.push(report);
+  saveReports(reports);
+
+  var msg = generateWeChatMsg(report);
+  document.getElementById('msg-text').value = msg;
+  document.getElementById('msg-preview').classList.add('show');
+  document.getElementById('copy-feedback').textContent = '';
+
+  // 自动选中
+  setTimeout(function() {
+    var ta = document.getElementById('msg-text');
+    ta.focus();
+    ta.select();
+    ta.setSelectionRange(0, ta.value.length);
+  }, 200);
+
+  extractDatalists();
+  showStatus('已保存！复制下方消息发送到微信群', false);
+}
+
+function generateWeChatMsg(r) {
+  var lines = [];
+  lines.push('【' + (r.project || '预筛') + '】日报 ' + r.date);
+  lines.push('中心：' + r.site);
+  lines.push('CRC：' + r.crc);
+  lines.push('今日预筛：' + r.preScreen + ' 人');
+  var rate = r.preScreen > 0 ? '（' + Math.round(r.eligible/r.preScreen*100) + '%）' : '';
+  lines.push('筛选合格：' + r.eligible + ' 人' + rate);
+  lines.push('筛选失败：' + r.screenFail + ' 人');
+  if (r.pending > 0) lines.push('待确认：' + r.pending + ' 人');
+  if (r.failReason) lines.push('失败原因：' + r.failReason);
+  if (r.notes) lines.push('备注：' + r.notes);
+  lines.push('——');
+  return lines.join('\n');
+}
+
+function selectAllText() {
+  var ta = document.getElementById('msg-text');
+  ta.select();
+  ta.setSelectionRange(0, ta.value.length);
+}
+
+function selectAndCopy() {
+  var ta = document.getElementById('msg-text');
+  ta.select();
+  ta.setSelectionRange(0, ta.value.length);
+  try {
+    var ok = document.execCommand('copy');
+    var fb = document.getElementById('copy-feedback');
+    fb.textContent = ok ? '已复制！请到微信群粘贴' : '复制失败，请手动按 Ctrl+C';
+    if (ok) {
+      setTimeout(function() { fb.textContent = ''; }, 4000);
+    }
+  } catch(e) {
+    document.getElementById('copy-feedback').textContent = '复制失败，请手动 Ctrl+C';
+  }
+}
+
+function clearForm() {
+  document.getElementById('project-name').value = '';
+  document.getElementById('crc-name').value = '';
+  document.getElementById('site-name').value = '';
+  document.getElementById('pre-screen').value = '';
+  document.getElementById('eligible').value = '';
+  document.getElementById('screen-fail').value = '';
+  document.getElementById('pending').value = '0';
+  document.getElementById('fail-reason').value = '';
+  document.getElementById('notes').value = '';
+  document.getElementById('msg-preview').classList.remove('show');
+  document.getElementById('form-status').textContent = '';
+}
+
+function showStatus(msg, isError) {
+  var el = document.getElementById('form-status');
+  el.textContent = msg;
+  el.style.color = isError ? 'var(--red)' : 'var(--green)';
+  if (!isError) {
+    setTimeout(function() { el.textContent = ''; }, 5000);
+  }
+}
+
+// ========== PM 看板 ==========
+function renderPMDashboard() {
+  var reports = getReports();
+  var todayStr = document.getElementById('filter-date').value || today();
+
+  var todayReports = reports.filter(function(r) { return r.date === todayStr; });
+  var crcSet = [...new Set(reports.map(function(r) { return r.crc; }))];
+  var todayCrcs = [...new Set(todayReports.map(function(r) { return r.crc; }))];
+  var missingCrcs = crcSet.filter(function(c) { return !todayCrcs.includes(c); });
+
+  document.getElementById('stat-total').textContent = todayCrcs.length;
+  document.getElementById('stat-missing').textContent = missingCrcs.length;
+  document.getElementById('stat-all').textContent = reports.length;
+  document.getElementById('stat-pre-total').textContent = reports.reduce(function(s, r) { return s + (r.preScreen || 0); }, 0);
+
+  renderTable(reports);
+}
+
+function renderTable(reports) {
+  var tbody = document.getElementById('report-table-body');
+  var empty = document.getElementById('empty-state');
+
+  reports.sort(function(a, b) { return b.timestamp - a.timestamp; });
+
+  if (reports.length === 0) {
+    tbody.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  tbody.innerHTML = reports.map(function(r, idx) {
+    var rate = r.preScreen > 0 ? Math.round(r.eligible / r.preScreen * 100) + '%' : '-';
+    var failReasonEsc = (r.failReason || '').replace(/"/g, '&quot;');
+    var notesEsc = (r.notes || '').replace(/"/g, '&quot;');
+    return '<tr>' +
+      '<td style="white-space:nowrap;">' + r.date + '</td>' +
+      '<td>' + (r.project || '-') + '</td>' +
+      '<td><strong>' + r.crc + '</strong></td>' +
+      '<td>' + r.site + '</td>' +
+      '<td>' + r.preScreen + '</td>' +
+      '<td>' + r.eligible + ' <span class="badge badge-reported">' + rate + '</span></td>' +
+      '<td>' + r.screenFail + '</td>' +
+      '<td>' + r.pending + '</td>' +
+      '<td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + failReasonEsc + '">' + (r.failReason || '-') + '</td>' +
+      '<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + notesEsc + '">' + (r.notes || '-') + '</td>' +
+      '<td><button class="btn btn-outline btn-sm" onclick="deleteReport(' + idx + ')">删除</button></td>' +
+      '</tr>';
+  }).join('');
+}
+
+function deleteReport(idx) {
+  var reports = getReports();
+  var sorted = [...reports].sort(function(a, b) { return b.timestamp - a.timestamp; });
+  if (idx < 0 || idx >= sorted.length) return;
+  var target = sorted[idx];
+  var realIdx = reports.findIndex(function(r) { return r.timestamp === target.timestamp; });
+  if (realIdx === -1) return;
+  if (!confirm('确认删除 ' + target.crc + ' 在 ' + target.date + ' 的这条记录？')) return;
+  reports.splice(realIdx, 1);
+  saveReports(reports);
+  applyFilters();
+}
+
+function applyFilters() {
+  var filterDate = document.getElementById('filter-date').value;
+  var filterCrc = document.getElementById('filter-crc').value.trim();
+  var filterProject = document.getElementById('filter-project').value.trim();
+
+  var reports = getReports();
+
+  if (filterDate) reports = reports.filter(function(r) { return r.date === filterDate; });
+  if (filterCrc) reports = reports.filter(function(r) { return r.crc.indexOf(filterCrc) !== -1; });
+  if (filterProject) reports = reports.filter(function(r) { return (r.project || '').indexOf(filterProject) !== -1; });
+
+  var todayStr = filterDate || today();
+  var todayReports = reports.filter(function(r) { return r.date === todayStr; });
+  var todayCrcs = [...new Set(todayReports.map(function(r) { return r.crc; }))];
+  var allCrcs = [...new Set(getReports().map(function(r) { return r.crc; }))];
+  var missingCrcs = allCrcs.filter(function(c) { return !todayCrcs.includes(c); });
+
+  document.getElementById('stat-total').textContent = todayCrcs.length;
+  document.getElementById('stat-missing').textContent = missingCrcs.length;
+  document.getElementById('stat-all').textContent = reports.length;
+  document.getElementById('stat-pre-total').textContent = reports.reduce(function(s, r) { return s + (r.preScreen || 0); }, 0);
+
+  renderTable(reports);
+}
+
+function resetFilters() {
+  document.getElementById('filter-date').value = today();
+  document.getElementById('filter-crc').value = '';
+  document.getElementById('filter-project').value = '';
+  renderPMDashboard();
+}
+
+function exportData() {
+  var reports = getReports();
+  if (reports.length === 0) { alert('暂无数据可导出'); return; }
+  var headers = ['日期','项目','CRC','中心','预筛人数','合格人数','失败人数','待确认人数','失败原因','备注'];
+  var rows = reports.map(function(r) {
+    return [
+      r.date, r.project, r.crc, r.site, r.preScreen, r.eligible, r.screenFail, r.pending, r.failReason, r.notes
+    ].map(function(v) {
+      var s = (v === undefined || v === null) ? '' : String(v);
+      return '"' + s.replace(/"/g, '""') + '"';
+    }).join(',');
+  });
+  var csv = '\uFEFF' + headers.join(',') + '\n' + rows.join('\n');
+  var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = '预筛日报_' + today() + '.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+</script>
+</body>
+</html>
